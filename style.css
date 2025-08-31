@@ -1,0 +1,75 @@
+body{
+  margin:0;
+  overflow:hidden;
+  background:#0f0c29;
+  background:linear-gradient(45deg,#0f0c29,#302b63,#24243e);
+  font-family:'Poppins',sans-serif;
+  cursor:none;
+  color:white;
+  position:relative;
+  height:100vh;
+}
+
+canvas{
+  display:block;
+  margin:0 auto;
+  background:transparent;
+}
+
+#playerHealth, #enemyHealth{
+  position:absolute;
+  height:20px;
+  width:300px;
+  background:#333;
+  border:2px solid #0ff;
+  border-radius:10px;
+  top:20px;
+}
+#playerHealth{left:20px;}
+#enemyHealth{right:20px;}
+.healthFill{
+  height:100%;
+  background:#0ff;
+  border-radius:10px;
+}
+
+#comboCounter{
+  position:absolute;
+  top:60px;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:1.5rem;
+  color:#18ffff;
+}
+
+#status{
+  text-align:center;
+  position:absolute;
+  width:100%;
+  top:50%;
+  font-size:2rem;
+  display:none;
+  z-index:5;
+}
+
+#restart{
+  display:block;
+  margin:20px auto;
+  padding:10px 20px;
+  background:#0ff;
+  border:none;
+  color:#111;
+  font-size:1rem;
+  cursor:pointer;
+  border-radius:10px;
+}
+
+.particle{
+  position:absolute;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  pointer-events:none;
+  background:#0ff;
+  box-shadow:0 0 10px #0ff,0 0 20px #0ff;
+}
