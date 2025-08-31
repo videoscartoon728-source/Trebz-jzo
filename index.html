@@ -3,134 +3,200 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dodge The Blocks Game</title>
+<title>Ultimate Futuristic Fighting Game</title>
 <style>
-  body{
-    margin:0;
-    background:#111;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    height:100vh;
-    overflow:hidden;
-    color:white;
-    font-family:'Poppins',sans-serif;
-  }
-  canvas{
-    border:3px solid #0ff;
-    background:#222;
-    display:block;
-  }
-  #score{
-    position:absolute;
-    top:20px;
-    font-size:1.5rem;
-    left:50%;
-    transform:translateX(-50%);
-    color:#0ff;
-  }
-  #gameOver{
-    position:absolute;
-    top:50%;
-    left:50%;
-    transform:translate(-50%,-50%);
-    font-size:2rem;
-    display:none;
-    color:#ff0;
-    text-align:center;
-  }
-  #restart{
-    margin-top:20px;
-    padding:10px 20px;
-    background:#0ff;
-    border:none;
-    color:#111;
-    font-size:1rem;
-    cursor:pointer;
-    border-radius:10px;
-  }
+body{
+  margin:0;
+  overflow:hidden;
+  background:#0f0c29;
+  font-family:'Poppins',sans-serif;
+  cursor:none;
+  color:white;
+  position:relative;
+  height:100vh;
+}
+/* Canvas for Game & Neon Effects */
+canvas{
+  display:block;
+  margin:0 auto;
+  background:transparent;
+}
+
+/* Health Bars */
+#playerHealth, #enemyHealth{
+  position:absolute;
+  height:20px;
+  width:300px;
+  background:#333;
+  border:2px solid #0ff;
+  border-radius:10px;
+  top:20px;
+}
+#playerHealth{left:20px;}
+#enemyHealth{right:20px;}
+.healthFill{
+  height:100%;
+  background:#0ff;
+  border-radius:10px;
+}
+#comboCounter{
+  position:absolute;
+  top:60px;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:1.5rem;
+  color:#18ffff;
+}
+#status{text-align:center;position:absolute;width:100%;top:50%;font-size:2rem;display:none;z-index:5;}
+#restart{
+  display:block;
+  margin:20px auto;
+  padding:10px 20px;
+  background:#0ff;
+  border:none;
+  color:#111;
+  font-size:1rem;
+  cursor:pointer;
+  border-radius:10px;
+}
+
+/* Neon particles for attacks */
+.particle{
+  position:absolute;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  pointer-events:none;
+  background:#0ff;
+  box-shadow:0 0 10px #0ff,0 0 20px #0ff;
+}
 </style>
 </head>
 <body>
-<div id="score">Score: 0</div>
-<div id="gameOver">
-  Game Over<br>
-  <button id="restart">Restart</button>
-</div>
-<canvas id="gameCanvas" width="500" height="600"></canvas>
+
+<div id="playerHealth"><div class="healthFill" id="playerFill"></div></div>
+<div id="enemyHealth"><div class="healthFill" id="enemyFill"></div></div>
+<div id="comboCounter">Combo: 0</div>
+<div id="status">Game Over <button id="restart">Restart</button></div>
+<canvas id="gameCanvas" width="800" height="400"></canvas>
 
 <script>
 const canvas=document.getElementById('gameCanvas');
 const ctx=canvas.getContext('2d');
 
-let player={x:225,y:550,width:50,height:50,color:'#0ff',speed:7};
-let obstacles=[];
+const gravity=0.5;
 let keys={};
-let score=0;
 let gameOver=false;
+let combo=0;
 
-// Player movement
+// Player & Enemy
+const player={x:100,y:300,width:50,height:50,color:'#0ff',speed:5,dy:0,jumping:false,health:100,attacking:false};
+const enemy={x:600,y:300,width:50,height:50,color:'#f0f',speed:3,dy:0,jumping:false,health:100,attacking:false};
+
+// Controls
 document.addEventListener('keydown',e=>{keys[e.key]=true;});
 document.addEventListener('keyup',e=>{keys[e.key]=false;});
 
 // Restart
 document.getElementById('restart').addEventListener('click',()=>{
-  obstacles=[];
-  score=0;
-  player.x=225;
-  player.y=550;
+  player.health=100; enemy.health=100;
+  player.x=100; player.y=300;
+  enemy.x=600; enemy.y=300;
+  combo=0;
   gameOver=false;
-  document.getElementById('gameOver').style.display='none';
+  document.getElementById('status').style.display='none';
   requestAnimationFrame(gameLoop);
 });
 
-// Obstacle creation
-function createObstacle(){
-  const width=Math.random()*50+20;
-  obstacles.push({
-    x:Math.random()*(canvas.width-width),
-    y:-20,
-    width:width,
-    height:20,
-    color:`hsl(${Math.random()*360},100%,50%)`,
-    speed:Math.random()*3+2
-  });
+// Update Health & Combo
+function updateUI(){
+  document.getElementById('playerFill').style.width=player.health+'%';
+  document.getElementById('enemyFill').style.width=enemy.health+'%';
+  document.getElementById('comboCounter').innerText='Combo: '+combo;
 }
-setInterval(()=>{if(!gameOver) createObstacle();},1000);
+
+// Draw player/enemy
+function drawRect(obj){
+  ctx.fillStyle=obj.color;
+  ctx.fillRect(obj.x,obj.y,obj.width,obj.height);
+}
+
+// Neon particle effect
+function spawnParticle(x,y){
+  const p=document.createElement('div');
+  p.classList.add('particle');
+  p.style.left=x+'px';
+  p.style.top=y+'px';
+  document.body.appendChild(p);
+  setTimeout(()=>p.remove(),300);
+}
+
+// Attack collision
+function attack(attacker,defender){
+  if(attacker.attacking &&
+     attacker.x + attacker.width > defender.x &&
+     attacker.x < defender.x + defender.width &&
+     attacker.y + attacker.height > defender.y &&
+     attacker.y < defender.y + defender.height){
+       defender.health-=0.7;
+       combo++;
+       spawnParticle(defender.x+defender.width/2,defender.y+defender.height/2);
+       ctx.fillStyle='rgba(255,255,255,0.3)';
+       ctx.fillRect(defender.x,defender.y,defender.width,defender.height);
+  }
+}
 
 // Game loop
 function gameLoop(){
   if(gameOver) return;
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // Move player
-  if(keys['ArrowLeft'] && player.x>0) player.x-=player.speed;
-  if(keys['ArrowRight'] && player.x+player.width<canvas.width) player.x+=player.speed;
+  // Player movement
+  if(keys['a'] && player.x>0) player.x-=player.speed;
+  if(keys['d'] && player.x+player.width<canvas.width) player.x+=player.speed;
+  if(keys['w'] && !player.jumping){player.dy=-10;player.jumping=true;}
+  if(keys['j'] || keys['k'] || keys['l']) player.attacking=true;
+  else player.attacking=false;
 
-  // Draw player
-  ctx.fillStyle=player.color;
-  ctx.fillRect(player.x,player.y,player.width,player.height);
+  player.dy+=gravity;
+  player.y+=player.dy;
+  if(player.y>300){player.y=300;player.dy=0;player.jumping=false;}
 
-  // Move obstacles
-  obstacles.forEach((obs,i)=>{
-    obs.y+=obs.speed;
-    ctx.fillStyle=obs.color;
-    ctx.fillRect(obs.x,obs.y,obs.width,obs.height);
+  // Enemy AI
+  if(enemy.x>player.x) enemy.x-=enemy.speed;
+  else enemy.x+=enemy.speed;
+  enemy.attacking=Math.random()<0.03;
 
-    // Collision
-    if(player.x<obs.x+obs.width && player.x+player.width>obs.x &&
-       player.y<obs.y+obs.height && player.y+player.height>obs.y){
-         gameOver=true;
-         document.getElementById('gameOver').style.display='block';
-    }
+  enemy.dy+=gravity;
+  enemy.y+=enemy.dy;
+  if(enemy.y>300){enemy.y=300;enemy.dy=0;enemy.jumping=false;}
 
-    // Remove passed obstacles
-    if(obs.y>canvas.height) obstacles.splice(i,1);
-  });
+  // Check attacks
+  attack(player,enemy);
+  attack(enemy,player);
 
-  // Update score
-  score++;
-  document.getElementById('score').innerText='Score: '+score;
+  // Draw
+  drawRect(player);
+  drawRect(enemy);
+
+  // Update UI
+  updateUI();
+
+  // Check game over
+  if(player.health<=0 || enemy.health<=0){
+    gameOver=true;
+    document.getElementById('status').style.display='block';
+    document.getElementById('status').innerHTML=(player.health<=0 ? "Enemy Wins!" : "Player Wins!")+' <button id="restart">Restart</button>';
+    document.getElementById('restart').addEventListener('click',()=>{
+      player.health=100; enemy.health=100;
+      player.x=100; player.y=300;
+      enemy.x=600; enemy.y=300;
+      combo=0;
+      gameOver=false;
+      document.getElementById('status').style.display='none';
+      requestAnimationFrame(gameLoop);
+    });
+  }
 
   requestAnimationFrame(gameLoop);
 }
